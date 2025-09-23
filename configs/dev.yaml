@@ -1,0 +1,52 @@
+# 微信支付配置
+wechat:
+  app_id: "wx1234567890abcdef"
+  mch_id: "1900000001"
+  api_key: "your_api_key_here"
+  cert_path: "./certs/wechat/apiclient_cert.pem"
+  key_path: "./certs/wechat/apiclient_key.pem"
+  cert_serial_no: "1234567890"
+  api_v3_key: "your_api_v3_key_here"
+  notify_url: "https://bydance.com/notify/wechat"
+
+# 支付宝配置
+alipay:
+  app_id: "2021000000000000"
+  private_key: "MIIEvQIBADANBgkqhkiG9w0BAQEFAASC..."
+  alipay_public_key: "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBC..."
+  gateway_url: "https://openapi.alipay.com/gateway.do"
+  charset: "UTF-8"
+  sign_type: "RSA2"
+  notify_url: "https://example.com/notify/alipay"
+  return_url: "https://example.com/return/alipay"
+
+# 银联配置
+unionpay:
+  mer_id: "777290058110001"
+  cert_path: "./certs/unionpay/acp_prod_sign.pfx"
+  cert_pwd: "123456"
+  private_key_path: "./certs/unionpay/private.key"
+  public_key_path: "./certs/unionpay/public.key"
+  gateway_url: "https://gateway.95516.com/gateway/api/"
+  back_url: "https://example.com/notify/unionpay"
+  front_url: "https://example.com/return/unionpay"
+
+# 通用配置
+server:
+  port: 8080
+  mode: "debug"
+  
+logging:
+  level: "debug"
+  format: "json"
+  output: "logs/app.log"
+
+database:
+  host: "localhost"
+  port: 3306
+  user: "payment"
+  password: "password"
+  database: "payment_gateway"
+  charset: "utf8mb4"
+  max_open_conns: 100
+  max_idle_conns: 10

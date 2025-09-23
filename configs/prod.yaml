@@ -1,0 +1,49 @@
+# 生产环境配置
+wechat:
+  app_id: "${WECHAT_APP_ID}"
+  mch_id: "${WECHAT_MCH_ID}"
+  api_key: "${WECHAT_API_KEY}"
+  cert_path: "${WECHAT_CERT_PATH}"
+  key_path: "${WECHAT_KEY_PATH}"
+  cert_serial_no: "${WECHAT_CERT_SERIAL_NO}"
+  api_v3_key: "${WECHAT_API_V3_KEY}"
+  notify_url: "${WECHAT_NOTIFY_URL}"
+
+alipay:
+  app_id: "${ALIPAY_APP_ID}"
+  private_key: "${ALIPAY_PRIVATE_KEY}"
+  alipay_public_key: "${ALIPAY_PUBLIC_KEY}"
+  gateway_url: "https://openapi.alipay.com/gateway.do"
+  charset: "UTF-8"
+  sign_type: "RSA2"
+  notify_url: "${ALIPAY_NOTIFY_URL}"
+  return_url: "${ALIPAY_RETURN_URL}"
+
+unionpay:
+  mer_id: "${UNIONPAY_MER_ID}"
+  cert_path: "${UNIONPAY_CERT_PATH}"
+  cert_pwd: "${UNIONPAY_CERT_PWD}"
+  private_key_path: "${UNIONPAY_PRIVATE_KEY_PATH}"
+  public_key_path: "${UNIONPAY_PUBLIC_KEY_PATH}"
+  gateway_url: "https://gateway.95516.com/gateway/api/"
+  back_url: "${UNIONPAY_BACK_URL}"
+  front_url: "${UNIONPAY_FRONT_URL}"
+
+server:
+  port: 8080
+  mode: "release"
+  
+logging:
+  level: "info"
+  format: "json"
+  output: "logs/app.log"
+
+database:
+  host: "${DB_HOST}"
+  port: ${DB_PORT}
+  user: "${DB_USER}"
+  password: "${DB_PASSWORD}"
+  database: "${DB_NAME}"
+  charset: "utf8mb4"
+  max_open_conns: 200
+  max_idle_conns: 50
