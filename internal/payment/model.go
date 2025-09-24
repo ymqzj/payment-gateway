@@ -1,4 +1,3 @@
-// UnifiedPayRequest 统一支付请求
 package payment
 
 type UnifiedPayRequest struct {

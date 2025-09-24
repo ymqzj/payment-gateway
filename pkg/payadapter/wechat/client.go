@@ -1,23 +1,42 @@
 package wechat
-
 import (
 	"context"
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"time"
+	"os"
 
 	"github.com/bytedance/gopkg/util/logger"
 	"github.com/wechatpay-apiv3/wechatpay-go/core"
-	"github.com/wechatpay-apiv3/wechatpay-go/core/auth/verifiers"
-	"github.com/wechatpay-apiv3/wechatpay-go/core/downloader"
-	"github.com/wechatpay-apiv3/wechatpay-go/utils"
+	"github.com/wechatpay-apiv3/wechatpay-go/core/option"
 )
 
 type Client struct {
 	Client *core.Client
+	Appid  string
 	MchID  string
+}
+
+
+func loadPrivateKey(file string) (*rsa.PrivateKey, error) {
+	data, err := os.ReadFile(file)
+	if err != nil {
+		return nil, err
+	}
+	block, _ := pem.Decode(data)
+	if block == nil {
+		return nil, fmt.Errorf("decode private key error")
+	}
+	key, err := x509.ParsePKCS8PrivateKey(block.Bytes)
+	if err != nil {
+		return nil, err
+	}
+	rsaKey, ok := key.(*rsa.PrivateKey)
+	if !ok {
+		return nil, fmt.Errorf("not rsa private key")
+	}
+	return rsaKey, nil
 }
 
 func NewClient(conf *Config) *Client {
@@ -28,17 +47,7 @@ func NewClient(conf *Config) *Client {
 
 	ctx := context.Background()
 	opts := []core.ClientOption{
-		core.WithMerchant(conf.MchID, conf.SerialNo, mchPrivateKey),
-	}
-
-	// 如果提供了证书路径，自动下载并更新平台证书（用于回调验签）
-	if conf.CertFilePath != "" {
-		certificateDownloader := downloader.NewCertificateDownloader(
-			downloader.WithValidInterval(6 * time.Hour), // 每6小时刷新
-		)
-		opts = append(opts, core.WithCertDownloader(certificateDownloader))
-		verifier := verifiers.NewSHA256WithRSAVerifier()
-		opts = append(opts, core.WithVerifier(verifier))
+		option.WithWechatPayAutoAuthCipher(conf.MchID, conf.SerialNo, mchPrivateKey, conf.APIv3Key),
 	}
 
 	client, err := core.NewClient(ctx, opts...)
@@ -48,20 +57,7 @@ func NewClient(conf *Config) *Client {
 
 	return &Client{
 		Client: client,
+		Appid:  conf.AppID,
 		MchID:  conf.MchID,
 	}
-}
-
-// 加载商户私钥（支持从字符串或文件路径加载）
-func loadPrivateKey(keyOrPath string) (*rsa.PrivateKey, error) {
-	block, _ := pem.Decode([]byte(keyOrPath))
-	if block != nil {
-		return x509.ParsePKCS1PrivateKey(block.Bytes)
-	}
-
-	keyData, err := utils.LoadPrivateKeyWithPath(keyOrPath)
-	if err != nil {
-		return nil, fmt.Errorf("无法加载私钥: %w", err)
-	}
-	return x509.ParsePKCS1PrivateKey(keyData)
 }

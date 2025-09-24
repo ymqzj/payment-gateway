@@ -5,9 +5,9 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/wechatpay-apiv3/wechatpay-go/payments"
-
+	"github.com/wechatpay-apiv3/wechatpay-go/services/payments"
 	"github.com/wechatpay-apiv3/wechatpay-go/utils"
+	"github.com/bytedance/gopkg/util/logger"
 )
 
 func handleNotify(w http.ResponseWriter, r *http.Request) {
@@ -19,7 +19,7 @@ func handleNotify(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 验证签名
-	verifyResult, err := utils.VerifySHA256WithRSA(r.Header.Get("Wechatpay-Serial"), r.Header.Get("Wechatpay-Signature"), r.Header.Get("Wechatpay-Timestamp"), r.Header.Get("Wechatpay-Nonce"), string(body), publicKey)
+	verifyResult, err := utils.ver(r.Header.Get("Wechatpay-Serial"), r.Header.Get("Wechatpay-Signature"), r.Header.Get("Wechatpay-Timestamp"), r.Header.Get("Wechatpay-Nonce"), string(body), publicKey)
 	if err != nil || !verifyResult {
 		http.Error(w, "signature verify failed", http.StatusForbidden)
 		return

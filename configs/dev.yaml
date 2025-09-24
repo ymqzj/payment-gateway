@@ -7,7 +7,7 @@ wechat:
   key_path: "./certs/wechat/apiclient_key.pem"
   cert_serial_no: "1234567890"
   api_v3_key: "your_api_v3_key_here"
-  notify_url: "https://bydance.com/notify/wechat"
+  notify_url: "https://bytedance.com/notify/wechat"
 
 # 支付宝配置
 alipay:
@@ -17,8 +17,8 @@ alipay:
   gateway_url: "https://openapi.alipay.com/gateway.do"
   charset: "UTF-8"
   sign_type: "RSA2"
-  notify_url: "https://example.com/notify/alipay"
-  return_url: "https://example.com/return/alipay"
+  notify_url: "https://bytedance.com/notify/alipay"
+  return_url: "https://bytedance.com/return/alipay"
 
 # 银联配置
 unionpay:
@@ -28,8 +28,8 @@ unionpay:
   private_key_path: "./certs/unionpay/private.key"
   public_key_path: "./certs/unionpay/public.key"
   gateway_url: "https://gateway.95516.com/gateway/api/"
-  back_url: "https://example.com/notify/unionpay"
-  front_url: "https://example.com/return/unionpay"
+  back_url: "https://bytedance.com/notify/unionpay"
+  front_url: "https://bytedance.com/return/unionpay"
 
 # 通用配置
 server:

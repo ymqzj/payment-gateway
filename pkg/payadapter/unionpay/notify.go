@@ -10,10 +10,7 @@ import (
 )
 
 func (c *Client) HandleNotify(r *http.Request) (map[string]string, error) {
-	log := logger.With(
-		logger.String("trace_id", r.FormValue("traceId")),
-		logger.String("out_trade_no", r.FormValue("outTradeNo")),
-	)
+	log := logger.Info("unionpay notify")
 
 	err := r.ParseForm()
 	if err != nil {

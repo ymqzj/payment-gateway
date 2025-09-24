@@ -8,18 +8,15 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/google/martian/log"
 	"github.com/wechatpay-apiv3/wechatpay-go/core"
-	"github.com/wechatpay-apiv3/wechatpay-go/services/payments"
 	"github.com/wechatpay-apiv3/wechatpay-go/services/payments/app"
 	"github.com/wechatpay-apiv3/wechatpay-go/services/payments/jsapi"
-	"github.com/wechatpay-apiv3/wechatpay-go/services/payments/refund"
 	"github.com/wechatpay-apiv3/wechatpay-go/utils"
 	"github.com/ymqzj/payment-gateway/internal/payment"
 )
 
 func (c *Client) Pay(req *payment.UnifiedPayRequest) (*payment.UnifiedPayResponse, error) {
-	switch req.Scene {
+	switch payment.PayScene(req.Scene) {
 	case payment.SceneApp:
 		return c.payApp(req)
 	case payment.SceneJSAPI:
@@ -55,12 +52,12 @@ func (c *Client) payApp(req *payment.UnifiedPayRequest) (*payment.UnifiedPayResp
 	}
 
 	payData := map[string]interface{}{
-		"appid":     *resp.Appid,
+		"appid":     *resp.PartnerId,
 		"prepayid":  resp.PrepayId,
 		"noncestr":  resp.NonceStr,
 		"timestamp": resp.TimeStamp,
 		"package":   "Sign=WXPay",
-		"sign":      resp.Signature,
+		"sign":      resp.Sign,
 	}
 
 	return &payment.UnifiedPayResponse{
@@ -82,8 +79,8 @@ func (c *Client) payJSAPI(req *payment.UnifiedPayRequest) (*payment.UnifiedPayRe
 	total, _ := strconv.ParseInt(strconv.FormatFloat(req.TotalAmount*100, 'f', 0, 64), 10, 64)
 
 	resp, result, err := svc.Prepay(ctx, jsapi.PrepayRequest{
-		Appid:       core.String(c.Config.AppID),
-		Mchid:       core.String(c.Config.MchID),
+		Appid:       core.String(c.Config.Appid),
+		Mchid:       core.String(c.MchID),
 		Description: core.String(req.Subject),
 		OutTradeNo:  core.String(req.OutTradeNo),
 		NotifyUrl:   core.String(req.NotifyURL),
