@@ -16,7 +16,6 @@ import (
 	"github.com/wechatpay-apiv3/wechatpay-go/services/payments/h5"
 	"github.com/wechatpay-apiv3/wechatpay-go/services/payments/jsapi"
 	"github.com/wechatpay-apiv3/wechatpay-go/services/payments/native"
-	"github.com/wechatpay-apiv3/wechatpay-go/utils"
 	"github.com/ymqzj/payment-gateway/configs"
 	"github.com/ymqzj/payment-gateway/internal/payment"
 )
@@ -87,18 +86,27 @@ func (c *Client) Pay(ctx context.Context, req *payment.UnifiedPayRequest) (*paym
 	}
 }
 
+// Helper functions to replace utils.StringPtr and utils.Int64Ptr
+func stringPtr(s string) *string {
+	return &s
+}
+
+func int64Ptr(i int64) *int64 {
+	return &i
+}
+
 // appPay 实现App支付
 func (c *Client) appPay(ctx context.Context, req *payment.UnifiedPayRequest) (*payment.UnifiedPayResponse, error) {
 	svc := app.AppApiService{Client: c.client}
 	resp, result, err := svc.Prepay(ctx,
 		app.PrepayRequest{
-			Appid:       utils.StringPtr(c.config.AppID),
-			Mchid:       utils.StringPtr(c.config.MchID),
-			Description: utils.StringPtr(req.Subject),
-			OutTradeNo:  utils.StringPtr(req.OutTradeNo),
-			NotifyUrl:   utils.StringPtr(req.NotifyURL),
-			Amount:      &app.Amount{Total: utils.Int64Ptr(int64(req.TotalAmount * 100))},
-			SceneInfo:   &app.SceneInfo{PayerClientIp: utils.StringPtr("127.0.0.1")},
+			Appid:       stringPtr(c.config.AppID),
+			Mchid:       stringPtr(c.config.MchID),
+			Description: stringPtr(req.Subject),
+			OutTradeNo:  stringPtr(req.OutTradeNo),
+			NotifyUrl:   stringPtr(req.NotifyURL),
+			Amount:      &app.Amount{Total: int64Ptr(int64(req.TotalAmount * 100))},
+			SceneInfo:   &app.SceneInfo{PayerClientIp: stringPtr("127.0.0.1")},
 		},
 	)
 
@@ -129,15 +137,15 @@ func (c *Client) h5Pay(ctx context.Context, req *payment.UnifiedPayRequest) (*pa
 	svc := h5.H5ApiService{Client: c.client}
 	resp, result, err := svc.Prepay(ctx,
 		h5.PrepayRequest{
-			Appid:       utils.StringPtr(c.config.AppID),
-			Mchid:       utils.StringPtr(c.config.MchID),
-			Description: utils.StringPtr(req.Subject),
-			OutTradeNo:  utils.StringPtr(req.OutTradeNo),
-			NotifyUrl:   utils.StringPtr(req.NotifyURL),
-			Amount:      &h5.Amount{Total: utils.Int64Ptr(int64(req.TotalAmount * 100))},
+			Appid:       stringPtr(c.config.AppID),
+			Mchid:       stringPtr(c.config.MchID),
+			Description: stringPtr(req.Subject),
+			OutTradeNo:  stringPtr(req.OutTradeNo),
+			NotifyUrl:   stringPtr(req.NotifyURL),
+			Amount:      &h5.Amount{Total: int64Ptr(int64(req.TotalAmount * 100))},
 			SceneInfo: &h5.SceneInfo{
-				PayerClientIp: utils.StringPtr("127.0.0.1"),
-				H5Info:        &h5.H5Info{Type: utils.StringPtr("iOS")},
+				PayerClientIp: stringPtr("127.0.0.1"),
+				H5Info:        &h5.H5Info{Type: stringPtr("iOS")},
 			},
 		},
 	)
@@ -171,13 +179,13 @@ func (c *Client) jsapiPay(ctx context.Context, req *payment.UnifiedPayRequest) (
 	svc := jsapi.JsapiApiService{Client: c.client}
 	resp, result, err := svc.Prepay(ctx,
 		jsapi.PrepayRequest{
-			Appid:       utils.StringPtr(c.config.AppID),
-			Mchid:       utils.StringPtr(c.config.MchID),
-			Description: utils.StringPtr(req.Subject),
-			OutTradeNo:  utils.StringPtr(req.OutTradeNo),
-			NotifyUrl:   utils.StringPtr(req.NotifyURL),
-			Amount:      &jsapi.Amount{Total: utils.Int64Ptr(int64(req.TotalAmount * 100))},
-			Payer:       &jsapi.Payer{Openid: utils.StringPtr(req.OpenID)},
+			Appid:       stringPtr(c.config.AppID),
+			Mchid:       stringPtr(c.config.MchID),
+			Description: stringPtr(req.Subject),
+			OutTradeNo:  stringPtr(req.OutTradeNo),
+			NotifyUrl:   stringPtr(req.NotifyURL),
+			Amount:      &jsapi.Amount{Total: int64Ptr(int64(req.TotalAmount * 100))},
+			Payer:       &jsapi.Payer{Openid: stringPtr(req.OpenID)},
 		},
 	)
 
@@ -207,12 +215,12 @@ func (c *Client) nativePay(ctx context.Context, req *payment.UnifiedPayRequest) 
 	svc := native.NativeApiService{Client: c.client}
 	resp, result, err := svc.Prepay(ctx,
 		native.PrepayRequest{
-			Appid:       utils.StringPtr(c.config.AppID),
-			Mchid:       utils.StringPtr(c.config.MchID),
-			Description: utils.StringPtr(req.Subject),
-			OutTradeNo:  utils.StringPtr(req.OutTradeNo),
-			NotifyUrl:   utils.StringPtr(req.NotifyURL),
-			Amount:      &native.Amount{Total: utils.Int64Ptr(int64(req.TotalAmount * 100))},
+			Appid:       stringPtr(c.config.AppID),
+			Mchid:       stringPtr(c.config.MchID),
+			Description: stringPtr(req.Subject),
+			OutTradeNo:  stringPtr(req.OutTradeNo),
+			NotifyUrl:   stringPtr(req.NotifyURL),
+			Amount:      &native.Amount{Total: int64Ptr(int64(req.TotalAmount * 100))},
 		},
 	)
 
@@ -290,13 +298,13 @@ func (c *Client) Refund(ctx context.Context, req *payment.RefundRequest) (*payme
 	svc := payments.RefundsApiService{Client: c.client}
 	resp, result, err := svc.Create(ctx,
 		payments.CreateRequest{
-			OutTradeNo:  utils.StringPtr(req.OutTradeNo),
-			OutRefundNo: utils.StringPtr(req.OutRefundNo),
-			Reason:      utils.StringPtr(req.RefundReason),
+			OutTradeNo:  stringPtr(req.OutTradeNo),
+			OutRefundNo: stringPtr(req.OutRefundNo),
+			Reason:      stringPtr(req.RefundReason),
 			Amount: &payments.AmountReq{
-				Refund:   utils.Int64Ptr(int64(req.RefundAmount * 100)),
-				Total:    utils.Int64Ptr(int64(req.TotalAmount * 100)),
-				Currency: utils.StringPtr("CNY"),
+				Refund:   int64Ptr(int64(req.RefundAmount * 100)),
+				Total:    int64Ptr(int64(req.TotalAmount * 100)),
+				Currency: stringPtr("CNY"),
 			},
 		},
 	)
@@ -344,8 +352,8 @@ func (c *Client) Close(ctx context.Context, req *payment.CloseRequest) error {
 	svc := payments.NativeApiService{Client: c.client}
 	result, err := svc.CloseOrder(ctx,
 		payments.CloseOrderRequest{
-			OutTradeNo: utils.StringPtr(req.OutTradeNo),
-			Mchid:      utils.StringPtr(c.config.MchID),
+			OutTradeNo: stringPtr(req.OutTradeNo),
+			Mchid:      stringPtr(c.config.MchID),
 		},
 	)
 
@@ -365,8 +373,8 @@ func (c *Client) Query(ctx context.Context, req *payment.QueryRequest) (*payment
 	svc := payments.NativeApiService{Client: c.client}
 	resp, result, err := svc.QueryOrderByOutTradeNo(ctx,
 		payments.QueryOrderByOutTradeNoRequest{
-			OutTradeNo: utils.StringPtr(req.OutTradeNo),
-			Mchid:      utils.StringPtr(c.config.MchID),
+			OutTradeNo: stringPtr(req.OutTradeNo),
+			Mchid:      stringPtr(c.config.MchID),
 		},
 	)
 
