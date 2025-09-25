@@ -1,10 +1,12 @@
 package alipay
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/smartwalle/alipay/v3"
 	"github.com/ymqzj/payment-gateway/configs"
@@ -118,13 +120,12 @@ func (c *Client) Pay(ctx context.Context, req *payment.UnifiedPayRequest) (*paym
 
 // HandleNotify 处理异步通知
 func (c *Client) HandleNotify(ctx context.Context, data []byte) (*payment.NotifyResult, error) {
-	// Create a fake HTTP request to satisfy the SDK API
-	// In a real implementation, the data should be parsed properly
-	req, err := http.NewRequest("POST", "", nil)
+	// Create HTTP request from the actual notification data
+	req, err := http.NewRequest("POST", "", bytes.NewReader(data))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
-	req.Body = http.NoBody
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
 	// 解析并验签通知
 	noti, err := c.client.GetTradeNotification(req)
@@ -136,12 +137,22 @@ func (c *Client) HandleNotify(ctx context.Context, data []byte) (*payment.Notify
 	var totalAmount float64
 	fmt.Sscanf(noti.TotalAmount, "%f", &totalAmount)
 
+	// Parse pay time
+	var payTime *time.Time
+	if noti.GmtPayment != "" {
+		if t, err := time.Parse("2006-01-02 15:04:05", noti.GmtPayment); err == nil {
+			payTime = &t
+		}
+	}
+
 	result := &payment.NotifyResult{
 		Success:     noti.TradeStatus == alipay.TradeStatusSuccess,
 		OutTradeNo:  noti.OutTradeNo,
 		TotalAmount: totalAmount,
 		TradeStatus: string(noti.TradeStatus),
 		Channel:     payment.ChannelAlipay,
+		OrderID:     noti.TradeNo,
+		PayTime:     payTime,
 	}
 
 	return result, nil
@@ -174,6 +185,9 @@ func (c *Client) Refund(ctx context.Context, req *payment.RefundRequest) (*payme
 
 	refundAmount, _ := strconv.ParseFloat(resp.RefundFee, 64)
 
+	// Using a simple time for the refund time
+	now := time.Now()
+
 	return &payment.RefundResponse{
 		Code:         "0",
 		Message:      "success",
@@ -181,27 +195,65 @@ func (c *Client) Refund(ctx context.Context, req *payment.RefundRequest) (*payme
 		OutRefundNo:  req.OutRefundNo,
 		RefundAmount: refundAmount,
 		RefundStatus: "SUCCESS",
+		RefundTime:   &now,
 		Channel:      payment.ChannelAlipay,
 	}, nil
 }
 
 // Close 关闭订单接口
 func (c *Client) Close(ctx context.Context, req *payment.CloseRequest) error {
-	// TODO: Implement actual Alipay close order logic
-	// This is a placeholder implementation
+	var p = alipay.TradeClose{}
+	p.OutTradeNo = req.OutTradeNo
+
+	_, err := c.client.TradeClose(ctx, p)
+	if err != nil {
+		return fmt.Errorf("alipay close order failed: %w", err)
+	}
+
 	return nil
 }
 
 // Query 查询订单
 func (c *Client) Query(ctx context.Context, req *payment.QueryRequest) (*payment.QueryResponse, error) {
-	// TODO: Implement actual Alipay query logic
-	// This is a placeholder implementation
+	var p = alipay.TradeQuery{}
+	p.OutTradeNo = req.OutTradeNo
+
+	resp, err := c.client.TradeQuery(ctx, p)
+	if err != nil {
+		return nil, fmt.Errorf("alipay query order failed: %w", err)
+	}
+
+	if resp.Code != "10000" {
+		return nil, fmt.Errorf("alipay query order failed: %s - %s", resp.Code, resp.Msg)
+	}
+
+	status := payment.TradeStatusNotPay
+	switch resp.TradeStatus {
+	case alipay.TradeStatusSuccess:
+		status = payment.TradeStatusSuccess
+	case "TRADE_CLOSED":
+		status = payment.TradeStatusClosed
+	case "WAIT_BUYER_PAY":
+		status = payment.TradeStatusNotPay
+	}
+
+	var payTime *time.Time
+	if resp.SendPayDate != "" {
+		if t, err := time.Parse("2006-01-02 15:04:05", resp.SendPayDate); err == nil {
+			payTime = &t
+		}
+	}
+
+	totalAmount, _ := strconv.ParseFloat(resp.TotalAmount, 64)
+
 	return &payment.QueryResponse{
 		Code:        "0",
 		Message:     "success",
-		OrderID:     req.OrderID,
+		OrderID:     resp.TradeNo,
 		OutTradeNo:  req.OutTradeNo,
-		TradeStatus: payment.TradeStatusSuccess,
+		TradeStatus: status,
+		TotalAmount: totalAmount,
+		PayTime:     payTime,
 		Channel:     payment.ChannelAlipay,
 	}, nil
 }

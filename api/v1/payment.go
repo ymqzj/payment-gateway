@@ -31,7 +31,6 @@ type PayRequest struct {
 	NotifyURL   string  `json:"notify_url" binding:"required"`
 	ReturnURL   string  `json:"return_url,omitempty"`
 	OpenID      string  `json:"openid,omitempty"`
-	BuyerID     string  `json:"buyer_id,omitempty"`
 	Attach      string  `json:"attach,omitempty"`
 }
 
@@ -152,6 +151,11 @@ func (h *PaymentHandler) Query(c *gin.Context) {
 		return
 	}
 
+	var payTimeStr string
+	if resp.PayTime != nil {
+		payTimeStr = resp.PayTime.Format(time.RFC3339)
+	}
+
 	c.JSON(http.StatusOK, PayResponse{
 		Code:    0,
 		Message: "success",
@@ -160,7 +164,7 @@ func (h *PaymentHandler) Query(c *gin.Context) {
 			"out_trade_no": resp.OutTradeNo,
 			"trade_status": resp.TradeStatus,
 			"total_amount": resp.TotalAmount,
-			"pay_time":     resp.PayTime,
+			"pay_time":     payTimeStr,
 			"channel":      resp.Channel,
 		},
 	})
@@ -216,6 +220,11 @@ func (h *PaymentHandler) Refund(c *gin.Context) {
 		return
 	}
 
+	var refundTimeStr string
+	if resp.RefundTime != nil {
+		refundTimeStr = resp.RefundTime.Format(time.RFC3339)
+	}
+
 	c.JSON(http.StatusOK, PayResponse{
 		Code:    0,
 		Message: "success",
@@ -224,7 +233,7 @@ func (h *PaymentHandler) Refund(c *gin.Context) {
 			"out_refund_no": resp.OutRefundNo,
 			"refund_amount": resp.RefundAmount,
 			"refund_status": resp.RefundStatus,
-			"refund_time":   resp.RefundTime,
+			"refund_time":   refundTimeStr,
 			"channel":       resp.Channel,
 		},
 	})
@@ -239,6 +248,39 @@ type CloseRequest struct {
 
 // Close 关闭订单接口
 func (h *PaymentHandler) Close(c *gin.Context) {
+	var req CloseRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, PayResponse{
+			Code:    400,
+			Message: err.Error(),
+		})
+		return
+	}
+
+	channel := payment.ChannelType(req.Channel)
+	if !channel.IsValid() {
+		c.JSON(http.StatusBadRequest, PayResponse{
+			Code:    400,
+			Message: "invalid channel",
+		})
+		return
+	}
+
+	closeReq := &payment.CloseRequest{
+		Channel:    channel,
+		OrderID:    req.OrderID,
+		OutTradeNo: req.OutTradeNo,
+	}
+
+	err := h.gateway.Close(c.Request.Context(), closeReq)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, PayResponse{
+			Code:    500,
+			Message: err.Error(),
+		})
+		return
+	}
+
 	c.JSON(http.StatusOK, PayResponse{
 		Code:    0,
 		Message: "success",
@@ -305,6 +347,12 @@ func (h *PaymentHandler) HandleNotify(c *gin.Context) {
 		return
 	}
 
+	// Format time if exists
+	var payTimeStr string
+	if result.PayTime != nil {
+		payTimeStr = result.PayTime.Format(time.RFC3339)
+	}
+
 	// 返回成功响应
 	c.JSON(http.StatusOK, PayResponse{
 		Code:    0,
@@ -316,7 +364,7 @@ func (h *PaymentHandler) HandleNotify(c *gin.Context) {
 			"trade_status": result.TradeStatus,
 			"channel":      result.Channel,
 			"order_id":     result.OrderID,
-			"pay_time":     result.PayTime,
+			"pay_time":     payTimeStr,
 		},
 	})
 }

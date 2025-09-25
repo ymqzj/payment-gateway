@@ -86,7 +86,7 @@ func Load(env string) *Config {
 	// 设置配置文件路径
 	viper.SetConfigName(env)
 	viper.SetConfigType("yaml")
-	
+
 	// 添加多个可能的配置文件路径
 	viper.AddConfigPath("./configs")
 	viper.AddConfigPath("../configs")

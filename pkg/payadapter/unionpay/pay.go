@@ -243,15 +243,66 @@ func (c *Client) buildPayData(resp *CreateOrderResponse, scene payment.PayScene)
 
 // HandleNotify 处理异步通知
 func (c *Client) HandleNotify(ctx context.Context, data []byte) (*payment.NotifyResult, error) {
-	// TODO: 实现银联异步通知处理
-	// 这里需要解析银联的通知数据，验证签名，并返回处理结果
+	// 解析通知数据
+	params := make(map[string]string)
+	err := json.Unmarshal(data, &params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse notify data: %w", err)
+	}
 
-	// 暂时返回空结果，后续需要实现具体的通知处理逻辑
-	return &payment.NotifyResult{
-		Success:    false,
-		OutTradeNo: "",
-		Channel:    payment.ChannelUnionPay,
-	}, fmt.Errorf("notify handling not implemented yet")
+	// 验签
+	signature := params["signature"]
+	delete(params, "signature") // 验签时排除 signature 字段
+
+	if !VerifySign(params, signature, c.PublicKey) {
+		return nil, errors.New("invalid signature")
+	}
+
+	// 检查响应码
+	respCode := params["respCode"]
+	queryRespCode := params["queryRespCode"]
+
+	// 构造返回结果
+	result := &payment.NotifyResult{
+		Channel: payment.ChannelUnionPay,
+	}
+
+	// 设置订单号
+	if orderId := params["orderId"]; orderId != "" {
+		result.OutTradeNo = orderId
+	}
+
+	// 设置银联订单号
+	if tn := params["tn"]; tn != "" {
+		result.OrderID = tn
+	}
+
+	// 解析支付金额
+	if txnAmt := params["txnAmt"]; txnAmt != "" {
+		// 银联金额单位是分，需要转换为元
+		if amount, err := fmt.Sscanf(txnAmt, "%f", &result.TotalAmount); err == nil && amount == 1 {
+			result.TotalAmount = result.TotalAmount / 100.0
+		}
+	}
+
+	// 解析支付时间
+	if payTimeStr := params["payTime"]; payTimeStr != "" {
+		// 银联时间格式: YYYYMMDDHHMMSS
+		if payTime, err := time.Parse("20060102150405", payTimeStr); err == nil {
+			result.PayTime = &payTime
+		}
+	}
+
+	// 判断支付是否成功
+	if (respCode == "00" || respCode == "") && (queryRespCode == "00" || queryRespCode == "") {
+		result.Success = true
+		result.TradeStatus = string(payment.TradeStatusSuccess)
+	} else {
+		result.Success = false
+		result.TradeStatus = string(payment.TradeStatusPayError)
+	}
+
+	return result, nil
 }
 
 // GetChannel 获取渠道标识
