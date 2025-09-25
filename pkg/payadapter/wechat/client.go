@@ -16,6 +16,7 @@ import (
 	"github.com/wechatpay-apiv3/wechatpay-go/services/payments/h5"
 	"github.com/wechatpay-apiv3/wechatpay-go/services/payments/jsapi"
 	"github.com/wechatpay-apiv3/wechatpay-go/services/payments/native"
+	"github.com/wechatpay-apiv3/wechatpay-go/services/refunddomestic"
 	"github.com/ymqzj/payment-gateway/configs"
 	"github.com/ymqzj/payment-gateway/internal/payment"
 )
@@ -295,13 +296,13 @@ func (c *Client) GetChannel() payment.ChannelType {
 
 // Refund 退款接口
 func (c *Client) Refund(ctx context.Context, req *payment.RefundRequest) (*payment.RefundResponse, error) {
-	svc := payments.RefundsApiService{Client: c.client}
+	svc := refunddomestic.RefundsApiService{Client: c.client}
 	resp, result, err := svc.Create(ctx,
-		payments.CreateRequest{
+		refunddomestic.CreateRequest{
 			OutTradeNo:  stringPtr(req.OutTradeNo),
 			OutRefundNo: stringPtr(req.OutRefundNo),
 			Reason:      stringPtr(req.RefundReason),
-			Amount: &payments.AmountReq{
+			Amount: &refunddomestic.AmountReq{
 				Refund:   int64Ptr(int64(req.RefundAmount * 100)),
 				Total:    int64Ptr(int64(req.TotalAmount * 100)),
 				Currency: stringPtr("CNY"),
