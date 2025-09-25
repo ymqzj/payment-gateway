@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"sync"
-	"time"
 )
 
 // NotifyHandler 通知处理器接口
@@ -62,9 +61,9 @@ func (nm *NotifyManager) RegisterProcessor(name string, processor NotifyProcesso
 // HandleNotify 处理异步通知
 func (nm *NotifyManager) HandleNotify(ctx context.Context, channel ChannelType, body []byte) (*NotifyResult, error) {
 	// 获取适配器
-	adapter, err := nm.gateway.GetAdapter(channel)
-	if err != nil {
-		return nil, fmt.Errorf("get adapter failed: %w", err)
+	adapter, exists := nm.gateway.adapters[channel]
+	if !exists {
+		return nil, fmt.Errorf("get adapter failed: unsupported channel %s", channel)
 	}
 
 	// 处理通知
@@ -128,9 +127,9 @@ func (h *DefaultNotifyHandler) Handle(ctx context.Context, channel ChannelType, 
 // Verify 验证通知签名
 func (h *DefaultNotifyHandler) Verify(ctx context.Context, channel ChannelType, body []byte) error {
 	// 获取适配器
-	adapter, err := h.gateway.GetAdapter(channel)
-	if err != nil {
-		return err
+	adapter, exists := h.gateway.adapters[channel]
+	if !exists {
+		return fmt.Errorf("unsupported channel: %s", channel)
 	}
 
 	// 这里应该调用适配器的验证方法
@@ -175,14 +174,14 @@ func NewLoggingProcessor(logger Logger) *LoggingProcessor {
 
 // Process 处理通知日志
 func (p *LoggingProcessor) Process(ctx context.Context, result *NotifyResult) error {
-	p.logger.Info(ctx, "processing notify",
-		"channel", result.Channel,
-		"order_id", result.OrderID,
-		"out_trade_no", result.OutTradeNo,
-		"trade_status", result.TradeStatus,
-		"total_amount", result.TotalAmount,
-		"pay_time", result.PayTime,
-	)
+	//p.logger.Info(ctx, "processing notify",
+	//	"channel", result.Channel,
+	//	"order_id", result.OrderID,
+	//	"out_trade_no", result.OutTradeNo,
+	//	"trade_status", result.TradeStatus,
+	//	"total_amount", result.TotalAmount,
+	//	"pay_time", result.PayTime,
+	//)
 
 	return nil
 }
@@ -204,13 +203,13 @@ func (p *OrderProcessor) Process(ctx context.Context, result *NotifyResult) erro
 
 	// 示例：根据交易状态处理
 	switch result.TradeStatus {
-	case TradeStatusSuccess:
+	case string(TradeStatusSuccess):
 		// 处理支付成功
 		return p.handlePaymentSuccess(ctx, result)
-	case TradeStatusRefund:
+	case string(TradeStatusRefund):
 		// 处理退款
 		return p.handleRefund(ctx, result)
-	case TradeStatusClosed:
+	case string(TradeStatusClosed):
 		// 处理订单关闭
 		return p.handleOrderClose(ctx, result)
 	default:
@@ -232,29 +231,6 @@ func (p *OrderProcessor) handleRefund(ctx context.Context, result *NotifyResult)
 
 func (p *OrderProcessor) handleOrderClose(ctx context.Context, result *NotifyResult) error {
 	// 实现订单关闭处理逻辑
-	return nil
-}
-
-// MetricsProcessor 指标处理器
-type MetricsProcessor struct {
-	// 这里可以添加指标相关的依赖
-}
-
-// NewMetricsProcessor 创建指标处理器
-func NewMetricsProcessor() *MetricsProcessor {
-	return &MetricsProcessor{}
-}
-
-// Process 处理指标收集
-func (p *MetricsProcessor) Process(ctx context.Context, result *NotifyResult) error {
-	metrics := metrics.MustGet(ctx)
-
-	// 示例：记录支付时间
-	if result.PayTime != nil {
-		latency := time.Since(*result.PayTime)
-		_ = latency // 记录延迟指标
-	}
-
 	return nil
 }
 

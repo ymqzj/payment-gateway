@@ -12,8 +12,7 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/bytedance/gopkg/util/logger"
-	"github.com/ymqzj/payment-gateway/pkg/payadapter/unionpay"
+	"github.com/ymqzj/payment-gateway/internal/payment"
 	"go.uber.org/zap"
 )
 
@@ -48,6 +47,36 @@ func NewClient(config *Config) *Client {
 	}
 }
 
+// NewClientWithKeys 创建新的客户端，自动从文件加载私钥和公钥
+func NewClientWithKeys(config *Config) (*Client, error) {
+	gateway := SANDBOX_GATEWAY
+	if config.Gateway == "prod" {
+		gateway = PROD_GATEWAY
+	}
+
+	// 加载私钥
+	privateKey, err := LoadPrivateKeyFromFile(config.PrivateKeyPath, config.CertPwd)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load private key: %w", err)
+	}
+
+	// 加载公钥
+	publicKey, err := LoadPublicKeyFromFile(config.PublicKeyPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load public key: %w", err)
+	}
+
+	return &Client{
+		MerId:      config.MerId,
+		AppId:      config.AppId,
+		PrivateKey: privateKey,
+		PublicKey:  publicKey,
+		Gateway:    gateway,
+		FrontUrl:   config.FrontUrl,
+		BackUrl:    config.BackUrl,
+	}, nil
+}
+
 type CreateOrderRequest struct {
 	OutTradeNo  string  // 商户订单号
 	TotalAmount float64 // 金额（元）
@@ -56,6 +85,7 @@ type CreateOrderRequest struct {
 	NotifyUrl   string  // 异步回调
 	ReturnUrl   string  // 同步跳转
 	TraceID     string  // 全链路追踪ID
+	Scene       string  // 支付场景
 }
 
 type CreateOrderResponse struct {
@@ -66,10 +96,9 @@ type CreateOrderResponse struct {
 }
 
 func (c *Client) CreateOrder(ctx context.Context, req CreateOrderRequest) (*CreateOrderResponse, error) {
-	log := logger.With(
-		zap.String("trace_id", req.TraceID),
-		zap.String("out_trade_no", req.OutTradeNo),
-	)
+	// Create a simple logger
+	log := zap.NewExample().Sugar()
+	defer log.Sync()
 
 	log.Info("开始创建银联支付订单")
 
@@ -93,9 +122,9 @@ func (c *Client) CreateOrder(ctx context.Context, req CreateOrderRequest) (*Crea
 	}
 
 	// 生成签名
-	sign, err := unionpay.GenerateSign(params, c.PrivateKey)
+	sign, err := GenerateSign(params, c.PrivateKey)
 	if err != nil {
-		log.Error("生成签名失败", zap.Error(err))
+		log.Error("生成签名失败", err)
 		return nil, fmt.Errorf("generate sign failed: %w", err)
 	}
 	params["signature"] = sign
@@ -108,39 +137,39 @@ func (c *Client) CreateOrder(ctx context.Context, req CreateOrderRequest) (*Crea
 
 	resp, err := http.PostForm(c.Gateway+"api/PayTransReq.do", formData)
 	if err != nil {
-		log.Error("请求银联网关失败", zap.Error(err))
+		log.Error("请求银联网关失败", err)
 		return nil, fmt.Errorf("request unionpay failed: %w", err)
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Error("读取响应体失败", zap.Error(err))
+		log.Error("读取响应体失败", err)
 		return nil, err
 	}
 
 	var result map[string]string
 	err = json.Unmarshal(body, &result)
 	if err != nil {
-		log.Error("解析银联响应失败", zap.ByteString("body", body), zap.Error(err))
+		log.Error("解析银联响应失败", string(body), err)
 		return nil, err
 	}
 
 	// 验签
-	if !unionpay.VerifySign(result, result["signature"], c.PublicKey) {
-		log.Error("银联响应验签失败", zap.Any("response", result))
+	if !VerifySign(result, result["signature"], c.PublicKey) {
+		log.Error("银联响应验签失败", result)
 		return nil, errors.New("verify signature failed")
 	}
 
 	if result["respCode"] != "00" {
 		log.Error("银联下单失败",
-			zap.String("respCode", result["respCode"]),
-			zap.String("respMsg", result["respMsg"]),
+			"respCode", result["respCode"],
+			"respMsg", result["respMsg"],
 		)
 		return nil, fmt.Errorf("unionpay error: %s", result["respMsg"])
 	}
 
-	log.Info("银联下单成功", zap.String("tn", result["tn"]))
+	log.Info("银联下单成功", "tn", result["tn"])
 
 	return &CreateOrderResponse{
 		Tn:         result["tn"],
@@ -148,4 +177,84 @@ func (c *Client) CreateOrder(ctx context.Context, req CreateOrderRequest) (*Crea
 		ResultCode: result["respCode"],
 		ResultMsg:  result["respMsg"],
 	}, nil
+}
+
+// Pay 实现支付接口
+func (c *Client) Pay(ctx context.Context, req *payment.UnifiedPayRequest) (*payment.UnifiedPayResponse, error) {
+	// 创建银联订单请求
+	unionpayReq := CreateOrderRequest{
+		OutTradeNo:  req.OutTradeNo,
+		TotalAmount: req.TotalAmount,
+		Subject:     req.Subject,
+		Body:        req.Body,
+		NotifyUrl:   req.NotifyURL,
+		ReturnUrl:   req.ReturnURL,
+		TraceID:     fmt.Sprintf("trace_%s", req.OutTradeNo),
+		Scene:       string(req.Scene),
+	}
+
+	// 调用银联创建订单
+	resp, err := c.CreateOrder(ctx, unionpayReq)
+	if err != nil {
+		return &payment.UnifiedPayResponse{
+			Code:    "1",
+			Message: fmt.Sprintf("银联下单失败: %v", err),
+		}, nil
+	}
+
+	// 根据支付场景返回不同的支付数据
+	payData := c.buildPayData(resp, req.Scene)
+
+	return &payment.UnifiedPayResponse{
+		Code:       "0",
+		Message:    "success",
+		OrderID:    resp.OrderId,
+		OutTradeNo: req.OutTradeNo,
+		PayData:    payData,
+		Channel:    payment.ChannelUnionPay,
+	}, nil
+}
+
+// buildPayData 根据支付场景构建支付数据
+func (c *Client) buildPayData(resp *CreateOrderResponse, scene payment.PayScene) interface{} {
+	switch scene {
+	case payment.SceneApp:
+		// APP支付返回tn码
+		return map[string]string{
+			"tn": resp.Tn,
+		}
+	case payment.SceneH5, payment.ScenePC:
+		// H5和PC支付返回支付URL
+		return map[string]string{
+			"pay_url": fmt.Sprintf("%s?tn=%s", c.Gateway, resp.Tn),
+		}
+	case payment.SceneNative:
+		// 扫码支付返回二维码链接
+		return map[string]string{
+			"qr_code": fmt.Sprintf("%s?tn=%s", c.Gateway, resp.Tn),
+		}
+	default:
+		// 默认返回tn码
+		return map[string]string{
+			"tn": resp.Tn,
+		}
+	}
+}
+
+// HandleNotify 处理异步通知
+func (c *Client) HandleNotify(ctx context.Context, data []byte) (*payment.NotifyResult, error) {
+	// TODO: 实现银联异步通知处理
+	// 这里需要解析银联的通知数据，验证签名，并返回处理结果
+
+	// 暂时返回空结果，后续需要实现具体的通知处理逻辑
+	return &payment.NotifyResult{
+		Success:    false,
+		OutTradeNo: "",
+		Channel:    payment.ChannelUnionPay,
+	}, fmt.Errorf("notify handling not implemented yet")
+}
+
+// GetChannel 获取渠道标识
+func (c *Client) GetChannel() payment.ChannelType {
+	return payment.ChannelUnionPay
 }

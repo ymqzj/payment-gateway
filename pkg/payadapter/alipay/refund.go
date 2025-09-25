@@ -2,50 +2,43 @@
 package alipay
 
 import (
+	"context"
 	"fmt"
 	"strconv"
+
+	"github.com/smartwalle/alipay/v3"
+	"github.com/ymqzj/payment-gateway/internal/payment"
 )
 
-type UnifiedRefundRequest struct {
-	OutTradeNo   string  // 原支付订单号
-	OutRefundNo  string  // 商户退款单号（幂等）
-	RefundAmount float64 // 退款金额
-	Reason       string  // 退款原因
-}
-
-type UnifiedRefundResponse struct {
-	Code     string
-	Message  string
-	RefundID string // 支付宝退款单号
-	Status   string // SUCCESS / FAILED
-}
-
-func (c *Client) Refund(req *UnifiedRefundRequest) (*UnifiedRefundResponse, error) {
-	p := c.Client.TradeRefund(nil)
+func (c *Client) Refund(ctx context.Context, req *payment.RefundRequest) (*payment.RefundResponse, error) {
+	var p = alipay.TradeRefund{}
 	p.OutTradeNo = req.OutTradeNo
 	p.RefundAmount = strconv.FormatFloat(req.RefundAmount, 'f', 2, 64)
 	p.OutRequestNo = req.OutRefundNo // 幂等键
-	p.RefundReason = req.Reason
+	p.RefundReason = req.RefundReason
 
-	resp, err := p.Do()
+	resp, err := p.RefundAmount(c.client)
 	if err != nil {
-		return &UnifiedRefundResponse{
+		return &payment.RefundResponse{
 			Code:    "1",
 			Message: "退款请求失败: " + err.Error(),
 		}, nil
 	}
 
 	if resp.Code != "10000" {
-		return &UnifiedRefundResponse{
+		return &payment.RefundResponse{
 			Code:    "1",
 			Message: fmt.Sprintf("支付宝退款失败: %s - %s", resp.Code, resp.Msg),
 		}, nil
 	}
 
-	return &UnifiedRefundResponse{
-		Code:     "0",
-		Message:  "success",
-		RefundID: resp.RefundFee,
-		Status:   "SUCCESS",
+	return &payment.RefundResponse{
+		Code:         "0",
+		Message:      "success",
+		RefundID:     resp.RefundFee,
+		OutRefundNo:  req.OutRefundNo,
+		RefundAmount: req.RefundAmount,
+		RefundStatus: "SUCCESS",
+		Channel:      payment.ChannelAlipay,
 	}, nil
 }

@@ -5,16 +5,16 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/bytedance/gopkg/util/logger"
 	"go.uber.org/zap"
 )
 
-func (c *Client) HandleNotify(r *http.Request) (map[string]string, error) {
-	log := logger.Info("unionpay notify")
+func (c *Client) HandleNotifyRequest(r *http.Request) (map[string]string, error) {
+	log := zap.NewExample().Sugar()
+	defer log.Sync()
 
 	err := r.ParseForm()
 	if err != nil {
-		log.Error("解析表单失败", logger.Error(err))
+		log.Error("解析表单失败", zap.Error(err))
 		return nil, err
 	}
 
@@ -30,7 +30,7 @@ func (c *Client) HandleNotify(r *http.Request) (map[string]string, error) {
 	delete(params, "signature") // 验签时排除 signature 字段
 
 	if !VerifySign(params, signature, c.PublicKey) {
-		log.Error("银联回调验签失败", logger.Any("params", params))
+		log.Error("银联回调验签失败", zap.Any("params", params))
 		return nil, errors.New("invalid signature")
 	}
 

@@ -10,7 +10,6 @@ import (
 	"github.com/ymqzj/payment-gateway/internal/payment"
 	"github.com/ymqzj/payment-gateway/pkg/payadapter/alipay"
 	"github.com/ymqzj/payment-gateway/pkg/payadapter/unionpay"
-
 	"github.com/ymqzj/payment-gateway/pkg/payadapter/wechat"
 )
 

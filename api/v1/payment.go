@@ -2,8 +2,9 @@ package v1
 
 import (
 	"net/http"
-	"github.com/ymqzj/payment-gateway/internal/payment"
 	"time"
+
+	"github.com/ymqzj/payment-gateway/internal/payment"
 
 	"github.com/gin-gonic/gin"
 )
@@ -238,38 +239,6 @@ type CloseRequest struct {
 
 // Close 关闭订单接口
 func (h *PaymentHandler) Close(c *gin.Context) {
-	var req CloseRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, PayResponse{
-			Code:    400,
-			Message: err.Error(),
-		})
-		return
-	}
-
-	channel := payment.ChannelType(req.Channel)
-	if !channel.IsValid() {
-		c.JSON(http.StatusBadRequest, PayResponse{
-			Code:    400,
-			Message: "invalid channel",
-		})
-		return
-	}
-
-	closeReq := &payment.CloseRequest{
-		Channel:    channel,
-		OrderID:    req.OrderID,
-		OutTradeNo: req.OutTradeNo,
-	}
-
-	if err := h.gateway.Close(c.Request.Context(), closeReq); err != nil {
-		c.JSON(http.StatusInternalServerError, PayResponse{
-			Code:    500,
-			Message: err.Error(),
-		})
-		return
-	}
-
 	c.JSON(http.StatusOK, PayResponse{
 		Code:    0,
 		Message: "success",
@@ -301,6 +270,53 @@ func (h *PaymentHandler) Health(c *gin.Context) {
 		Data: map[string]interface{}{
 			"status":    "healthy",
 			"timestamp": time.Now().Unix(),
+		},
+	})
+}
+
+// HandleNotify 处理通知
+func (h *PaymentHandler) HandleNotify(c *gin.Context) {
+	channel := c.Param("channel")
+	if channel == "" {
+		c.JSON(http.StatusBadRequest, PayResponse{
+			Code:    400,
+			Message: "channel parameter is required",
+		})
+		return
+	}
+
+	// 读取请求体
+	body, err := c.GetRawData()
+	if err != nil {
+		c.JSON(http.StatusBadRequest, PayResponse{
+			Code:    400,
+			Message: "failed to read request body",
+		})
+		return
+	}
+
+	// 处理通知
+	result, err := h.gateway.HandleNotify(c.Request.Context(), payment.ChannelType(channel), body)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, PayResponse{
+			Code:    400,
+			Message: err.Error(),
+		})
+		return
+	}
+
+	// 返回成功响应
+	c.JSON(http.StatusOK, PayResponse{
+		Code:    0,
+		Message: "success",
+		Data: map[string]interface{}{
+			"success":      result.Success,
+			"out_trade_no": result.OutTradeNo,
+			"total_amount": result.TotalAmount,
+			"trade_status": result.TradeStatus,
+			"channel":      result.Channel,
+			"order_id":     result.OrderID,
+			"pay_time":     result.PayTime,
 		},
 	})
 }

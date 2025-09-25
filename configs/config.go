@@ -1,7 +1,6 @@
 package configs
 
 import (
-	"crypto/rsa"
 	"log"
 	"os"
 
@@ -44,15 +43,15 @@ type AlipayConfig struct {
 
 // UnionPayConfig 银联配置
 type UnionPayConfig struct {
-	MerID      string          `mapstructure:"mer_id"`
-	AppId      string          `mapstructure:"app_id"`
-	CertPath   string          `mapstructure:"cert_path"`
-	CertPwd    string          `mapstructure:"cert_pwd"`
-	PrivateKey *rsa.PrivateKey `mapstructure:"private_key"`
-	PublicKey  *rsa.PublicKey  `mapstructure:"public_key"`
-	Gateway    string          `mapstructure:"gateway"`
-	BackURL    string          `mapstructure:"back_url"`
-	FrontURL   string          `mapstructure:"front_url"`
+	MerID          string `mapstructure:"mer_id"`
+	AppId          string `mapstructure:"app_id"`
+	CertPath       string `mapstructure:"cert_path"`
+	CertPwd        string `mapstructure:"cert_pwd"`
+	PrivateKeyPath string `mapstructure:"private_key_path"`
+	PublicKeyPath  string `mapstructure:"public_key_path"`
+	Gateway        string `mapstructure:"gateway"`
+	BackURL        string `mapstructure:"back_url"`
+	FrontURL       string `mapstructure:"front_url"`
 }
 
 // ServerConfig 服务器配置

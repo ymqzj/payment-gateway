@@ -9,7 +9,7 @@ import (
 	"sort"
 )
 
-// signature.go
+// GenerateSign 生成签名
 func GenerateSign(params map[string]string, privateKey *rsa.PrivateKey) (string, error) {
 	// 1. 过滤空值 + 排序
 	var keys []string
@@ -40,6 +40,8 @@ func GenerateSign(params map[string]string, privateKey *rsa.PrivateKey) (string,
 	// 4. Base64 编码
 	return base64.StdEncoding.EncodeToString(signature), nil
 }
+
+// VerifySign 验证签名
 func VerifySign(params map[string]string, signature string, publicKey *rsa.PublicKey) bool {
 	// 同样构造待验签字符串
 	var keys []string
