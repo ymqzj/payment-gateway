@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/smartwalle/alipay/v3"
 	"github.com/ymqzj/payment-gateway/configs"
@@ -153,14 +154,32 @@ func (c *Client) GetChannel() payment.ChannelType {
 
 // Refund 退款接口
 func (c *Client) Refund(ctx context.Context, req *payment.RefundRequest) (*payment.RefundResponse, error) {
-	// TODO: Implement actual Alipay refund logic
-	// This is a placeholder implementation
+	var p = alipay.TradeRefund{}
+	p.OutTradeNo = req.OutTradeNo
+	p.RefundAmount = strconv.FormatFloat(req.RefundAmount, 'f', 2, 64)
+	p.OutRequestNo = req.OutRefundNo // 幂等键
+	p.RefundReason = req.RefundReason
+
+	resp, err := c.client.TradeRefund(ctx, p)
+	if err != nil {
+		return nil, fmt.Errorf("alipay refund failed: %w", err)
+	}
+
+	if resp.Code != "10000" {
+		return &payment.RefundResponse{
+			Code:    "1",
+			Message: fmt.Sprintf("支付宝退款失败: %s - %s", resp.Code, resp.Msg),
+		}, nil
+	}
+
+	refundAmount, _ := strconv.ParseFloat(resp.RefundFee, 64)
+
 	return &payment.RefundResponse{
 		Code:         "0",
 		Message:      "success",
-		RefundID:     "refund_test_id",
+		RefundID:     resp.TradeNo,
 		OutRefundNo:  req.OutRefundNo,
-		RefundAmount: req.RefundAmount,
+		RefundAmount: refundAmount,
 		RefundStatus: "SUCCESS",
 		Channel:      payment.ChannelAlipay,
 	}, nil
