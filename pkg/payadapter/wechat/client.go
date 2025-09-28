@@ -282,7 +282,7 @@ func (c *Client) HandleNotify(ctx context.Context, data []byte) (*payment.Notify
 
 	// Parse pay time if available
 	if transaction.SuccessTime != nil {
-		t, _ := time.Parse(time.RFC3339, *transaction.SuccessTime)
+		t := *transaction.SuccessTime
 		result.PayTime = &t
 	}
 
@@ -341,8 +341,7 @@ func (c *Client) Refund(ctx context.Context, req *payment.RefundRequest) (*payme
 	}
 
 	if resp.SuccessTime != nil {
-		t, _ := time.Parse(time.RFC3339, *resp.SuccessTime)
-		refundResp.RefundTime = &t
+		refundResp.RefundTime = resp.SuccessTime
 	}
 
 	return refundResp, nil
@@ -409,8 +408,7 @@ func (c *Client) Query(ctx context.Context, req *payment.QueryRequest) (*payment
 
 	var payTime *time.Time
 	if resp.SuccessTime != nil {
-		t, _ := time.Parse(time.RFC3339, *resp.SuccessTime)
-		payTime = &t
+		payTime = resp.SuccessTime
 	}
 
 	queryResp := &payment.QueryResponse{

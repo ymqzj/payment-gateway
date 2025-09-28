@@ -5,7 +5,6 @@ go 1.23.0
 toolchain go1.24.5
 
 require (
-	github.com/bytedance/gopkg v0.1.3
 	github.com/gin-gonic/gin v1.11.0
 	github.com/smartwalle/alipay/v3 v3.2.27
 	github.com/spf13/viper v1.18.2
