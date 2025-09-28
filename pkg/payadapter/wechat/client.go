@@ -21,6 +21,10 @@ import (
 	"github.com/ymqzj/payment-gateway/internal/payment"
 )
 
+const (
+	timeFormat = "2006-01-02T15:04:05-07:00"
+)
+
 type Client struct {
 	client *core.Client
 	config *Config
@@ -282,8 +286,10 @@ func (c *Client) HandleNotify(ctx context.Context, data []byte) (*payment.Notify
 
 	// Parse pay time if available
 	if transaction.SuccessTime != nil {
-		t := *transaction.SuccessTime
-		result.PayTime = &t
+		// SuccessTime is a *string, need to parse it to *time.Time
+		if t, err := time.Parse(timeFormat, *transaction.SuccessTime); err == nil {
+			result.PayTime = &t
+		}
 	}
 
 	return result, nil
@@ -341,7 +347,10 @@ func (c *Client) Refund(ctx context.Context, req *payment.RefundRequest) (*payme
 	}
 
 	if resp.SuccessTime != nil {
-		refundResp.RefundTime = resp.SuccessTime
+		// SuccessTime is a *string, need to parse it to *time.Time
+		if t, err := time.Parse(timeFormat, *resp.SuccessTime); err == nil {
+			refundResp.RefundTime = &t
+		}
 	}
 
 	return refundResp, nil
@@ -408,7 +417,10 @@ func (c *Client) Query(ctx context.Context, req *payment.QueryRequest) (*payment
 
 	var payTime *time.Time
 	if resp.SuccessTime != nil {
-		payTime = resp.SuccessTime
+		// SuccessTime is a *string, need to parse it to *time.Time
+		if t, err := time.Parse(timeFormat, *resp.SuccessTime); err == nil {
+			payTime = &t
+		}
 	}
 
 	queryResp := &payment.QueryResponse{
