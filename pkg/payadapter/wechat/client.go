@@ -252,12 +252,16 @@ func (c *Client) nativePay(ctx context.Context, req *payment.UnifiedPayRequest) 
 
 // HandleNotify 处理异步通知
 func (c *Client) HandleNotify(ctx context.Context, data []byte) (*payment.NotifyResult, error) {
-	// Parse notification data using WeChat Pay SDK
-	// In a real implementation, this would parse the actual WeChat Pay notification
-	transaction := &payments.Transaction{}
+	// In a real implementation, the data would be parsed using the WeChat Pay SDK notification handler
+	// This requires an http.Request object, which would be passed from the API layer
+	// For now, we'll keep the placeholder implementation but make it more realistic
 
-	// For demo purposes, we'll simulate parsing the data
-	// In a real implementation, you would use the SDK's notification parser
+	// Parse notification data using WeChat Pay SDK
+	transaction := &payments.Transaction{}
+	// In a complete implementation, we would use:
+	// handler := notify.NewNotifyHandler(c.config.APIv3Key, verifier)
+	// _, err := handler.ParseNotifyRequest(ctx, request, transaction)
+	// But that requires access to the http.Request and certificate verifier
 
 	result := &payment.NotifyResult{
 		Success:     transaction.TradeState != nil && *transaction.TradeState == "SUCCESS",
@@ -347,10 +351,7 @@ func (c *Client) Refund(ctx context.Context, req *payment.RefundRequest) (*payme
 	}
 
 	if resp.SuccessTime != nil {
-		// SuccessTime is a *string, need to parse it to *time.Time
-		if t, err := time.Parse(timeFormat, *resp.SuccessTime); err == nil {
-			refundResp.RefundTime = &t
-		}
+		refundResp.RefundTime = resp.SuccessTime
 	}
 
 	return refundResp, nil
@@ -358,9 +359,9 @@ func (c *Client) Refund(ctx context.Context, req *payment.RefundRequest) (*payme
 
 // Close 关闭订单接口
 func (c *Client) Close(ctx context.Context, req *payment.CloseRequest) error {
-	svc := payments.NativeApiService{Client: c.client}
+	svc := native.NativeApiService{Client: c.client}
 	result, err := svc.CloseOrder(ctx,
-		payments.CloseOrderRequest{
+		native.CloseOrderRequest{
 			OutTradeNo: stringPtr(req.OutTradeNo),
 			Mchid:      stringPtr(c.config.MchID),
 		},
@@ -379,9 +380,9 @@ func (c *Client) Close(ctx context.Context, req *payment.CloseRequest) error {
 
 // Query 查询订单
 func (c *Client) Query(ctx context.Context, req *payment.QueryRequest) (*payment.QueryResponse, error) {
-	svc := payments.NativeApiService{Client: c.client}
+	svc := native.NativeApiService{Client: c.client}
 	resp, result, err := svc.QueryOrderByOutTradeNo(ctx,
-		payments.QueryOrderByOutTradeNoRequest{
+		native.QueryOrderByOutTradeNoRequest{
 			OutTradeNo: stringPtr(req.OutTradeNo),
 			Mchid:      stringPtr(c.config.MchID),
 		},
